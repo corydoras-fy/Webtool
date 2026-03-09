@@ -319,6 +319,33 @@ resizeMode.addEventListener('change', () => {
   if (mode === 'percent') { resizeW.placeholder = '%'; resizeW.value = 50; resizeSep.textContent = '%'; }
 });
 
+// 幅・高さ連動（アスペクト比固定時）
+let lastEdited = 'w';
+resizeW.addEventListener('input', () => {
+  lastEdited = 'w';
+  if (resizeMode.value === 'exact' && lockRatio.checked && files.length > 0) {
+    const img = new Image();
+    img.src = URL.createObjectURL(files[0].file);
+    img.onload = () => {
+      const ratio = img.naturalHeight / img.naturalWidth;
+      resizeH.value = Math.round((parseInt(resizeW.value) || 1) * ratio);
+      URL.revokeObjectURL(img.src);
+    };
+  }
+});
+resizeH.addEventListener('input', () => {
+  lastEdited = 'h';
+  if (resizeMode.value === 'exact' && lockRatio.checked && files.length > 0) {
+    const img = new Image();
+    img.src = URL.createObjectURL(files[0].file);
+    img.onload = () => {
+      const ratio = img.naturalWidth / img.naturalHeight;
+      resizeW.value = Math.round((parseInt(resizeH.value) || 1) * ratio);
+      URL.revokeObjectURL(img.src);
+    };
+  }
+});
+
 // Drop zone
 dropZone.addEventListener('click', () => fileInput.click());
 dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
