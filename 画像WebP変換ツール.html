@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>画像変換・圧縮・リサイズツール</title>
+<style>
+  :root {
+    --bg: #0f0f11;
+    --surface: #1a1a1f;
+    --surface2: #222228;
+    --border: #2e2e35;
+    --text: #e8e8ed;
+    --text2: #8e8e93;
+    --accent: #6c5ce7;
+    --accent2: #a29bfe;
+    --green: #00b894;
+    --red: #e17055;
+    --gradient: linear-gradient(135deg, #6c5ce7, #a29bfe);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+    background: var(--bg); color: var(--text); min-height: 100vh;
+  }
+
+  .header {
+    background: linear-gradient(180deg, #18181d 0%, var(--bg) 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 32px 24px 28px;
+    text-align: center;
+  }
+  .header h1 {
+    font-size: 28px; font-weight: 700; letter-spacing: -0.5px;
+    background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; margin-bottom: 8px;
+  }
+  .header p { font-size: 14px; color: var(--text2); }
+
+  .container { max-width: 880px; margin: 0 auto; padding: 24px; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 24px; margin-bottom: 20px;
+    transition: box-shadow 0.2s;
+  }
+  .card:hover { box-shadow: 0 4px 24px rgba(108,92,231,0.08); }
+  .card-title {
+    font-size: 13px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 1px; color: var(--accent2); margin-bottom: 18px;
+  }
+
+  .settings-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+  }
+  @media (max-width: 600px) { .settings-grid { grid-template-columns: 1fr; } }
+
+  .setting-block { display: flex; flex-direction: column; gap: 10px; }
+  .setting-label { font-size: 13px; font-weight: 500; color: var(--text2); }
+
+  select, input[type="number"] {
+    padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px;
+    font-size: 14px; background: var(--surface2); color: var(--text);
+    outline: none; transition: border-color 0.2s;
+  }
+  select:focus, input[type="number"]:focus { border-color: var(--accent); }
+  input[type="number"] { width: 80px; }
+
+  .range-wrap { display: flex; align-items: center; gap: 12px; }
+  input[type="range"] {
+    -webkit-appearance: none; appearance: none; flex: 1; height: 6px;
+    border-radius: 3px; background: var(--surface2); outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%;
+    background: var(--gradient); cursor: pointer; box-shadow: 0 2px 8px rgba(108,92,231,0.4);
+  }
+  .range-val {
+    min-width: 44px; text-align: center; font-size: 14px; font-weight: 600;
+    color: var(--accent2); background: var(--surface2); padding: 4px 10px;
+    border-radius: 6px;
+  }
+  .hint { font-size: 11px; color: var(--text2); margin-top: 2px; line-height: 1.5; }
+
+  .toggle-row {
+    display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px;
+  }
+  .toggle {
+    position: relative; width: 40px; height: 22px; background: var(--surface2);
+    border-radius: 11px; border: 1px solid var(--border); transition: all 0.2s;
+    flex-shrink: 0;
+  }
+  .toggle::after {
+    content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px;
+    border-radius: 50%; background: var(--text2); transition: all 0.2s;
+  }
+  .toggle.on { background: var(--accent); border-color: var(--accent); }
+  .toggle.on::after { left: 20px; background: #fff; }
+
+  .sub-options {
+    padding-left: 4px; margin-top: 4px; display: flex; flex-direction: column; gap: 8px;
+    max-height: 0; overflow: hidden; opacity: 0; transition: all 0.3s ease;
+  }
+  .sub-options.open { max-height: 300px; opacity: 1; }
+  .inline-inputs { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .inline-inputs span { font-size: 13px; color: var(--text2); }
+
+  .checkbox-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text2); cursor: pointer; }
+  .checkbox-row input[type="checkbox"] { accent-color: var(--accent); width: 15px; height: 15px; }
+
+  /* Drop zone */
+  .drop-zone {
+    border: 2px dashed var(--border); border-radius: 16px; padding: 48px 24px;
+    text-align: center; cursor: pointer; transition: all 0.3s;
+    background: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(108,92,231,0.02) 10px, rgba(108,92,231,0.02) 20px);
+  }
+  .drop-zone:hover { border-color: var(--accent); background: rgba(108,92,231,0.05); }
+  .drop-zone.dragover { border-color: var(--accent2); background: rgba(108,92,231,0.1); transform: scale(1.01); }
+  .drop-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.7; }
+  .drop-zone .main-text { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .drop-zone .sub-text { font-size: 13px; color: var(--text2); }
+
+  /* Actions */
+  .actions { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+  button {
+    padding: 10px 22px; border: none; border-radius: 10px; font-size: 14px;
+    font-weight: 600; cursor: pointer; transition: all 0.2s; letter-spacing: 0.3px;
+  }
+  button:hover { transform: translateY(-1px); }
+  button:active { transform: translateY(0); }
+  button:disabled { opacity: 0.35; cursor: default; transform: none; }
+  .btn-primary { background: var(--gradient); color: #fff; box-shadow: 0 4px 14px rgba(108,92,231,0.3); }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-danger { background: transparent; color: var(--red); border: 1px solid var(--red); }
+  .btn-danger:hover { background: var(--red); color: #fff; }
+
+  /* Stats */
+  .stats {
+    font-size: 13px; color: var(--text2); margin-bottom: 16px; padding: 10px 16px;
+    background: var(--surface); border-radius: 10px; border: 1px solid var(--border);
+    display: none;
+  }
+  .stats.visible { display: block; }
+  .stats .highlight { color: var(--accent2); font-weight: 600; }
+  .stats .saved { color: var(--green); font-weight: 600; }
+
+  /* File list */
+  .file-list { display: grid; gap: 10px; }
+  .file-item {
+    display: grid; grid-template-columns: 60px 1fr auto; align-items: center;
+    gap: 14px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px; transition: all 0.2s;
+  }
+  .file-item:hover { border-color: #3a3a42; }
+  .file-item.done { border-left: 3px solid var(--green); }
+  .file-item.error { border-left: 3px solid var(--red); }
+  .thumb {
+    width: 60px; height: 60px; object-fit: cover; border-radius: 8px;
+    background: var(--surface2); border: 1px solid var(--border);
+  }
+  .file-info { overflow: hidden; }
+  .file-name {
+    font-size: 14px; font-weight: 500; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .file-meta { font-size: 12px; color: var(--text2); margin-top: 3px; }
+  .file-meta .reduction { color: var(--green); font-weight: 600; }
+  .file-meta .increase { color: var(--red); font-weight: 600; }
+  .file-dims { font-size: 11px; color: #555; margin-top: 2px; }
+  .file-actions { display: flex; gap: 6px; }
+  .file-actions button { padding: 7px 14px; font-size: 13px; border-radius: 8px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Image Converter</h1>
+  <p>WebP / JPEG / PNG 相互変換・圧縮・リサイズ — ブラウザ内完結</p>
+</div>
+
+<div class="container">
+
+  <!-- Settings -->
+  <div class="card">
+    <div class="card-title">Settings</div>
+    <div class="settings-grid">
+
+      <div class="setting-block">
+        <div class="setting-label">出力形式</div>
+        <select id="outputFormat">
+          <option value="image/webp">WebP</option>
+          <option value="image/jpeg">JPEG</option>
+          <option value="image/png">PNG</option>
+        </select>
+      </div>
+
+      <div class="setting-block">
+        <div class="setting-label">品質</div>
+        <div class="range-wrap">
+          <input type="range" id="quality" min="1" max="100" value="80">
+          <span class="range-val" id="qualityVal">80%</span>
+        </div>
+        <div class="hint">低いほど軽量に（PNGは無損失のため無視されます）</div>
+      </div>
+
+      <div class="setting-block">
+        <div class="setting-label">リサイズ</div>
+        <div class="toggle-row" id="resizeToggle">
+          <div class="toggle" id="resizeToggleBtn"></div>
+          <span>リサイズを有効にする</span>
+        </div>
+        <div class="sub-options" id="resizeOptions">
+          <select id="resizeMode">
+            <option value="maxWidth">最大幅を指定</option>
+            <option value="maxHeight">最大高さを指定</option>
+            <option value="exact">幅 x 高さを指定</option>
+            <option value="percent">縮小率（%）</option>
+          </select>
+          <div class="inline-inputs">
+            <input type="number" id="resizeW" placeholder="幅" min="1" value="1200">
+            <span id="resizeSep">px</span>
+            <input type="number" id="resizeH" placeholder="高さ" min="1" value="800" style="display:none;">
+            <span id="resizeUnit" style="display:none;">px</span>
+          </div>
+          <label class="checkbox-row" id="lockRatioLabel" style="display:none;">
+            <input type="checkbox" id="lockRatio" checked> アスペクト比を固定
+          </label>
+          <div class="hint">元画像より拡大はしません</div>
+        </div>
+      </div>
+
+      <div class="setting-block">
+        <div class="setting-label">目標ファイルサイズ</div>
+        <div class="toggle-row" id="targetToggle">
+          <div class="toggle" id="targetToggleBtn"></div>
+          <span>サイズ上限を指定する</span>
+        </div>
+        <div class="sub-options" id="targetOptions">
+          <div class="inline-inputs">
+            <input type="number" id="targetSize" placeholder="200" min="1" value="200">
+            <select id="targetSizeUnit">
+              <option value="kb">KB</option>
+              <option value="mb">MB</option>
+            </select>
+          </div>
+          <div class="hint">品質を自動調整して指定サイズ以下に（PNGは非対応）</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Drop zone -->
+  <div class="card" style="padding:0; border:none; background:transparent;">
+    <div class="drop-zone" id="dropZone">
+      <div class="drop-icon">+</div>
+      <p class="main-text">ファイルをドラッグ&ドロップ</p>
+      <p class="sub-text">またはクリックして選択 — PNG / JPG / WebP / BMP / GIF / AVIF</p>
+      <input type="file" id="fileInput" multiple accept="image/*,.webp" style="display:none">
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <div class="actions">
+    <button class="btn-primary" id="convertBtn" disabled>変換する</button>
+    <button class="btn-secondary" id="downloadAllBtn" disabled>ZIP でダウンロード</button>
+    <button class="btn-danger" id="clearBtn" disabled>クリア</button>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats" id="stats"></div>
+
+  <!-- File list -->
+  <div class="file-list" id="fileList"></div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const dropZone = $('dropZone'), fileInput = $('fileInput');
+const qualitySlider = $('quality'), qualityVal = $('qualityVal');
+const outputFormat = $('outputFormat');
+const resizeMode = $('resizeMode');
+const resizeW = $('resizeW'), resizeH = $('resizeH'), resizeSep = $('resizeSep'), resizeUnit = $('resizeUnit');
+const lockRatio = $('lockRatio'), lockRatioLabel = $('lockRatioLabel');
+const targetSizeInput = $('targetSize'), targetSizeUnit = $('targetSizeUnit');
+const convertBtn = $('convertBtn'), downloadAllBtn = $('downloadAllBtn'), clearBtn = $('clearBtn');
+const fileList = $('fileList'), statsEl = $('stats');
+
+let files = [];
+let resizeEnabled = false, targetEnabled = false;
+
+// Toggle helpers
+function setupToggle(toggleRow, toggleBtn, options, getter, setter) {
+  toggleRow.addEventListener('click', () => {
+    setter(!getter());
+    toggleBtn.classList.toggle('on', getter());
+    options.classList.toggle('open', getter());
+  });
+}
+setupToggle($('resizeToggle'), $('resizeToggleBtn'), $('resizeOptions'), () => resizeEnabled, v => resizeEnabled = v);
+setupToggle($('targetToggle'), $('targetToggleBtn'), $('targetOptions'), () => targetEnabled, v => targetEnabled = v);
+
+qualitySlider.addEventListener('input', () => qualityVal.textContent = qualitySlider.value + '%');
+
+resizeMode.addEventListener('change', () => {
+  const mode = resizeMode.value;
+  resizeW.style.display = ''; resizeH.style.display = 'none';
+  resizeUnit.style.display = 'none'; resizeSep.textContent = 'px';
+  lockRatioLabel.style.display = 'none';
+  if (mode === 'maxWidth') { resizeW.placeholder = '幅'; resizeW.value = 1200; }
+  if (mode === 'maxHeight') { resizeW.placeholder = '高さ'; resizeW.value = 800; }
+  if (mode === 'exact') {
+    resizeW.placeholder = '幅'; resizeW.value = 1200; resizeH.value = 800;
+    resizeH.style.display = ''; resizeSep.textContent = '×'; resizeUnit.style.display = '';
+    lockRatioLabel.style.display = '';
+  }
+  if (mode === 'percent') { resizeW.placeholder = '%'; resizeW.value = 50; resizeSep.textContent = '%'; }
+});
+
+// Drop zone
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); addFiles(e.dataTransfer.files); });
+fileInput.addEventListener('change', () => { addFiles(fileInput.files); fileInput.value = ''; });
+
+function addFiles(newFiles) {
+  for (const f of newFiles) {
+    if (f.type.startsWith('image/')) {
+      files.push({ file: f, id: Date.now() + Math.random(), result: null, error: null, dims: null, newDims: null });
+    }
+  }
+  renderList(); updateButtons();
+}
+
+function formatSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+}
+
+function getExt(format) {
+  if (format === 'image/webp') return '.webp';
+  if (format === 'image/jpeg') return '.jpg';
+  return '.png';
+}
+
+function getOutputName(name) {
+  return name.replace(/\.[^.]+$/, '') + getExt(outputFormat.value);
+}
+
+function calcResize(origW, origH) {
+  if (!resizeEnabled) return { w: origW, h: origH };
+  const mode = resizeMode.value;
+  let w = origW, h = origH;
+  const v1 = parseInt(resizeW.value) || origW;
+  const v2 = parseInt(resizeH.value) || origH;
+  if (mode === 'maxWidth') { if (origW > v1) { w = v1; h = Math.round(origH * (v1 / origW)); } }
+  else if (mode === 'maxHeight') { if (origH > v1) { h = v1; w = Math.round(origW * (v1 / origH)); } }
+  else if (mode === 'exact') {
+    if (lockRatio.checked) {
+      const r = origW / origH, tw = Math.min(v1, origW), th = Math.min(v2, origH);
+      if (tw / th > r) { h = th; w = Math.round(h * r); } else { w = tw; h = Math.round(w / r); }
+    } else { w = Math.min(v1, origW); h = Math.min(v2, origH); }
+  } else if (mode === 'percent') {
+    const pct = Math.min(v1, 100) / 100;
+    w = Math.round(origW * pct); h = Math.round(origH * pct);
+  }
+  return { w: Math.max(1, w), h: Math.max(1, h) };
+}
+
+function renderList() {
+  fileList.innerHTML = '';
+  files.forEach((item, idx) => {
+    const div = document.createElement('div');
+    div.className = 'file-item' + (item.result ? ' done' : '') + (item.error ? ' error' : '');
+
+    const thumb = document.createElement('img');
+    thumb.className = 'thumb';
+    thumb.src = URL.createObjectURL(item.file);
+    thumb.onload = () => URL.revokeObjectURL(thumb.src);
+
+    const info = document.createElement('div');
+    info.className = 'file-info';
+
+    const name = document.createElement('div');
+    name.className = 'file-name';
+    name.textContent = item.file.name;
+
+    const meta = document.createElement('div');
+    meta.className = 'file-meta';
+    if (item.result) {
+      const diff = ((item.result.size - item.file.size) / item.file.size * 100).toFixed(1);
+      const reduced = item.result.size < item.file.size;
+      meta.innerHTML = `${formatSize(item.file.size)} → ${formatSize(item.result.size)} <span class="${reduced ? 'reduction' : 'increase'}">(${reduced ? '' : '+'}${diff}%)</span>`;
+    } else if (item.error) {
+      meta.textContent = item.error;
+    } else {
+      meta.textContent = formatSize(item.file.size);
+    }
+
+    const dims = document.createElement('div');
+    dims.className = 'file-dims';
+    if (item.dims && item.newDims) {
+      const changed = item.dims.w !== item.newDims.w || item.dims.h !== item.newDims.h;
+      dims.textContent = changed
+        ? `${item.dims.w} × ${item.dims.h}  →  ${item.newDims.w} × ${item.newDims.h}`
+        : `${item.dims.w} × ${item.dims.h}`;
+    }
+
+    info.appendChild(name); info.appendChild(meta); info.appendChild(dims);
+
+    const actions = document.createElement('div');
+    actions.className = 'file-actions';
+    if (item.result) {
+      const dlBtn = document.createElement('button');
+      dlBtn.className = 'btn-secondary'; dlBtn.textContent = '保存';
+      dlBtn.onclick = () => downloadOne(item);
+      actions.appendChild(dlBtn);
+    }
+    const rmBtn = document.createElement('button');
+    rmBtn.className = 'btn-danger'; rmBtn.textContent = '×';
+    rmBtn.style.padding = '7px 12px';
+    rmBtn.onclick = () => { files.splice(idx, 1); renderList(); updateButtons(); };
+    actions.appendChild(rmBtn);
+
+    div.appendChild(thumb); div.appendChild(info); div.appendChild(actions);
+    fileList.appendChild(div);
+  });
+  updateStats();
+}
+
+function updateButtons() {
+  const hasFiles = files.length > 0;
+  const hasResults = files.some(f => f.result);
+  convertBtn.disabled = !hasFiles;
+  downloadAllBtn.disabled = !hasResults;
+  clearBtn.disabled = !hasFiles;
+}
+
+function updateStats() {
+  if (files.length === 0) { statsEl.classList.remove('visible'); return; }
+  statsEl.classList.add('visible');
+  const done = files.filter(f => f.result).length;
+  const totalOrig = files.filter(f => f.result).reduce((s, f) => s + f.file.size, 0);
+  const totalNew = files.filter(f => f.result).reduce((s, f) => s + f.result.size, 0);
+  let html = `<span class="highlight">${files.length}</span> ファイル中 <span class="highlight">${done}</span> 件変換済み`;
+  if (done > 0) {
+    const saved = totalOrig - totalNew;
+    const pct = ((saved / totalOrig) * 100).toFixed(1);
+    html += ` &nbsp;|&nbsp; ${formatSize(totalOrig)} → ${formatSize(totalNew)} <span class="saved">(${saved > 0 ? '-' : '+'}${Math.abs(pct)}%)</span>`;
+  }
+  statsEl.innerHTML = html;
+}
+
+function canvasToBlob(canvas, fmt, quality) {
+  return new Promise(resolve => canvas.toBlob(resolve, fmt, quality));
+}
+
+function getTargetBytes() {
+  if (!targetEnabled) return null;
+  const val = parseInt(targetSizeInput.value);
+  if (!val || val <= 0) return null;
+  return targetSizeUnit.value === 'mb' ? val * 1024 * 1024 : val * 1024;
+}
+
+async function convertOne(item) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = async () => {
+      const origW = img.naturalWidth, origH = img.naturalHeight;
+      item.dims = { w: origW, h: origH };
+      const { w, h } = calcResize(origW, origH);
+      item.newDims = { w, h };
+
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+
+      const fmt = outputFormat.value;
+      const targetBytes = getTargetBytes();
+
+      if (targetBytes && fmt !== 'image/png') {
+        let lo = 0.01, hi = qualitySlider.value / 100, bestBlob = null;
+        let blob = await canvasToBlob(canvas, fmt, hi);
+        if (blob && blob.size <= targetBytes) {
+          bestBlob = blob;
+        } else {
+          for (let i = 0; i < 10; i++) {
+            const mid = (lo + hi) / 2;
+            blob = await canvasToBlob(canvas, fmt, mid);
+            if (blob && blob.size <= targetBytes) { bestBlob = blob; lo = mid; } else { hi = mid; }
+          }
+          if (!bestBlob) bestBlob = await canvasToBlob(canvas, fmt, 0.01);
+        }
+        if (bestBlob) { item.result = bestBlob; item.outputName = getOutputName(item.file.name); }
+        else { item.error = '指定サイズ以下にできませんでした'; }
+      } else {
+        const q = fmt === 'image/png' ? undefined : qualitySlider.value / 100;
+        const blob = await canvasToBlob(canvas, fmt, q);
+        if (blob) { item.result = blob; item.outputName = getOutputName(item.file.name); }
+        else { item.error = '変換に失敗しました'; }
+      }
+      URL.revokeObjectURL(img.src);
+      resolve();
+    };
+    img.onerror = () => { item.error = '読み込みに失敗'; URL.revokeObjectURL(img.src); resolve(); };
+    img.src = URL.createObjectURL(item.file);
+  });
+}
+
+convertBtn.addEventListener('click', async () => {
+  convertBtn.disabled = true; convertBtn.textContent = '変換中...';
+  for (const item of files) {
+    if (!item.result && !item.error) { await convertOne(item); renderList(); }
+  }
+  convertBtn.textContent = '変換する'; updateButtons();
+});
+
+function downloadOne(item) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(item.result); a.download = item.outputName;
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
+downloadAllBtn.addEventListener('click', async () => {
+  const converted = files.filter(f => f.result);
+  if (converted.length === 0) return;
+  if (converted.length === 1) { downloadOne(converted[0]); return; }
+
+  downloadAllBtn.disabled = true; downloadAllBtn.textContent = 'ZIP 作成中...';
+  const zip = new JSZip();
+  const used = {};
+  for (const item of converted) {
+    let name = item.outputName;
+    if (used[name]) { const b = name.replace(/\.[^.]+$/, ''), e = name.match(/\.[^.]+$/)[0]; used[name]++; name = b + '_' + used[name] + e; }
+    else { used[name] = 1; }
+    zip.file(name, item.result);
+  }
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'converted_images.zip';
+  a.click(); URL.revokeObjectURL(a.href);
+  downloadAllBtn.textContent = 'ZIP でダウンロード'; downloadAllBtn.disabled = false;
+});
+
+clearBtn.addEventListener('click', () => { files = []; renderList(); updateButtons(); });
+</script>
+</body>
+</html>
