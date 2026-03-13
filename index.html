@@ -1,579 +1,823 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>画像変換・圧縮・リサイズツール</title>
-<style>
-  :root {
-    --bg: #0f0f11;
-    --surface: #1a1a1f;
-    --surface2: #222228;
-    --border: #2e2e35;
-    --text: #e8e8ed;
-    --text2: #8e8e93;
-    --accent: #6c5ce7;
-    --accent2: #a29bfe;
-    --green: #00b894;
-    --red: #e17055;
-    --gradient: linear-gradient(135deg, #6c5ce7, #a29bfe);
-  }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
-    background: var(--bg); color: var(--text); min-height: 100vh;
-  }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>テキスト差分チェッカー</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-  .header {
-    background: linear-gradient(180deg, #18181d 0%, var(--bg) 100%);
-    border-bottom: 1px solid var(--border);
-    padding: 32px 24px 28px;
-    text-align: center;
-  }
-  .header h1 {
-    font-size: 28px; font-weight: 700; letter-spacing: -0.5px;
-    background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    background-clip: text; margin-bottom: 8px;
-  }
-  .header p { font-size: 14px; color: var(--text2); }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
+            background: #f0f2f5;
+            color: #333;
+            min-height: 100vh;
+        }
 
-  .container { max-width: 880px; margin: 0 auto; padding: 24px; }
+        .header {
+            background: #fff;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
 
-  .card {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 16px; padding: 24px; margin-bottom: 20px;
-    transition: box-shadow 0.2s;
-  }
-  .card:hover { box-shadow: 0 4px 24px rgba(108,92,231,0.08); }
-  .card-title {
-    font-size: 13px; font-weight: 600; text-transform: uppercase;
-    letter-spacing: 1px; color: var(--accent2); margin-bottom: 18px;
-  }
+        .header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1a1a2e;
+        }
 
-  .settings-grid {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
-  }
-  @media (max-width: 600px) { .settings-grid { grid-template-columns: 1fr; } }
+        .header-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
 
-  .setting-block { display: flex; flex-direction: column; gap: 10px; }
-  .setting-label { font-size: 13px; font-weight: 500; color: var(--text2); }
+        .view-toggle {
+            display: flex;
+            background: #f0f2f5;
+            border-radius: 8px;
+            padding: 2px;
+        }
 
-  select, input[type="number"] {
-    padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px;
-    font-size: 14px; background: var(--surface2); color: var(--text);
-    outline: none; transition: border-color 0.2s;
-  }
-  select:focus, input[type="number"]:focus { border-color: var(--accent); }
-  input[type="number"] { width: 80px; }
+        .view-toggle button {
+            padding: 6px 14px;
+            border: none;
+            background: transparent;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            color: #666;
+            transition: all 0.2s;
+        }
 
-  .range-wrap { display: flex; align-items: center; gap: 12px; }
-  input[type="range"] {
-    -webkit-appearance: none; appearance: none; flex: 1; height: 6px;
-    border-radius: 3px; background: var(--surface2); outline: none;
-  }
-  input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%;
-    background: var(--gradient); cursor: pointer; box-shadow: 0 2px 8px rgba(108,92,231,0.4);
-  }
-  .range-val {
-    min-width: 44px; text-align: center; font-size: 14px; font-weight: 600;
-    color: var(--accent2); background: var(--surface2); padding: 4px 10px;
-    border-radius: 6px;
-  }
-  .hint { font-size: 11px; color: var(--text2); margin-top: 2px; line-height: 1.5; }
+        .view-toggle button.active {
+            background: #fff;
+            color: #1a1a2e;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            font-weight: 500;
+        }
 
-  .toggle-row {
-    display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px;
-  }
-  .toggle {
-    position: relative; width: 40px; height: 22px; background: var(--surface2);
-    border-radius: 11px; border: 1px solid var(--border); transition: all 0.2s;
-    flex-shrink: 0;
-  }
-  .toggle::after {
-    content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px;
-    border-radius: 50%; background: var(--text2); transition: all 0.2s;
-  }
-  .toggle.on { background: var(--accent); border-color: var(--accent); }
-  .toggle.on::after { left: 20px; background: #fff; }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
 
-  .sub-options {
-    padding-left: 4px; margin-top: 4px; display: flex; flex-direction: column; gap: 8px;
-    max-height: 0; overflow: hidden; opacity: 0; transition: all 0.3s ease;
-  }
-  .sub-options.open { max-height: 300px; opacity: 1; }
-  .inline-inputs { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .inline-inputs span { font-size: 13px; color: var(--text2); }
+        .input-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
 
-  .checkbox-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text2); cursor: pointer; }
-  .checkbox-row input[type="checkbox"] { accent-color: var(--accent); width: 15px; height: 15px; }
+        .input-panel {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
 
-  /* Drop zone */
-  .drop-zone {
-    border: 2px dashed var(--border); border-radius: 16px; padding: 48px 24px;
-    text-align: center; cursor: pointer; transition: all 0.3s;
-    background: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(108,92,231,0.02) 10px, rgba(108,92,231,0.02) 20px);
-  }
-  .drop-zone:hover { border-color: var(--accent); background: rgba(108,92,231,0.05); }
-  .drop-zone.dragover { border-color: var(--accent2); background: rgba(108,92,231,0.1); transform: scale(1.01); }
-  .drop-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.7; }
-  .drop-zone .main-text { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
-  .drop-zone .sub-text { font-size: 13px; color: var(--text2); }
+        .input-panel-header {
+            padding: 10px 16px;
+            background: #fafbfc;
+            border-bottom: 1px solid #e8e8e8;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
 
-  /* Actions */
-  .actions { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
-  button {
-    padding: 10px 22px; border: none; border-radius: 10px; font-size: 14px;
-    font-weight: 600; cursor: pointer; transition: all 0.2s; letter-spacing: 0.3px;
-  }
-  button:hover { transform: translateY(-1px); }
-  button:active { transform: translateY(0); }
-  button:disabled { opacity: 0.35; cursor: default; transform: none; }
-  .btn-primary { background: var(--gradient); color: #fff; box-shadow: 0 4px 14px rgba(108,92,231,0.3); }
-  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
-  .btn-danger { background: transparent; color: var(--red); border: 1px solid var(--red); }
-  .btn-danger:hover { background: var(--red); color: #fff; }
+        .input-panel-header span {
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+        }
 
-  /* Stats */
-  .stats {
-    font-size: 13px; color: var(--text2); margin-bottom: 16px; padding: 10px 16px;
-    background: var(--surface); border-radius: 10px; border: 1px solid var(--border);
-    display: none;
-  }
-  .stats.visible { display: block; }
-  .stats .highlight { color: var(--accent2); font-weight: 600; }
-  .stats .saved { color: var(--green); font-weight: 600; }
+        .char-count {
+            font-size: 12px;
+            color: #999;
+        }
 
-  /* File list */
-  .file-list { display: grid; gap: 10px; }
-  .file-item {
-    display: grid; grid-template-columns: 60px 1fr auto; align-items: center;
-    gap: 14px; background: var(--surface); border: 1px solid var(--border);
-    border-radius: 12px; padding: 14px; transition: all 0.2s;
-  }
-  .file-item:hover { border-color: #3a3a42; }
-  .file-item.done { border-left: 3px solid var(--green); }
-  .file-item.error { border-left: 3px solid var(--red); }
-  .thumb {
-    width: 60px; height: 60px; object-fit: cover; border-radius: 8px;
-    background: var(--surface2); border: 1px solid var(--border);
-  }
-  .file-info { overflow: hidden; }
-  .file-name {
-    font-size: 14px; font-weight: 500; white-space: nowrap;
-    overflow: hidden; text-overflow: ellipsis;
-  }
-  .file-meta { font-size: 12px; color: var(--text2); margin-top: 3px; }
-  .file-meta .reduction { color: var(--green); font-weight: 600; }
-  .file-meta .increase { color: var(--red); font-weight: 600; }
-  .file-dims { font-size: 11px; color: #555; margin-top: 2px; }
-  .file-actions { display: flex; gap: 6px; }
-  .file-actions button { padding: 7px 14px; font-size: 13px; border-radius: 8px; }
-</style>
+        textarea {
+            width: 100%;
+            height: 220px;
+            padding: 14px 16px;
+            border: none;
+            outline: none;
+            resize: vertical;
+            font-size: 14px;
+            line-height: 1.7;
+            font-family: inherit;
+            color: #333;
+        }
+
+        textarea::placeholder {
+            color: #bbb;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            padding: 10px 28px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #4361ee;
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            background: #3a56d4;
+        }
+
+        .btn-secondary {
+            background: #e8eaed;
+            color: #555;
+        }
+
+        .btn-secondary:hover {
+            background: #d8dadd;
+        }
+
+        .btn-swap {
+            background: #fff;
+            color: #666;
+            border: 1px solid #ddd;
+            padding: 10px 16px;
+        }
+
+        .btn-swap:hover {
+            background: #f5f5f5;
+        }
+
+        /* Stats bar */
+        .stats-bar {
+            display: none;
+            background: #fff;
+            border-radius: 10px;
+            padding: 12px 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+            gap: 24px;
+            align-items: center;
+            font-size: 13px;
+        }
+
+        .stats-bar.visible {
+            display: flex;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .stat-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .stat-dot.added { background: #22c55e; }
+        .stat-dot.removed { background: #ef4444; }
+        .stat-dot.changed { background: #f59e0b; }
+
+        .stat-label { color: #888; }
+        .stat-value { font-weight: 600; color: #333; }
+
+        /* Diff output */
+        .diff-output {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+            overflow: hidden;
+            display: none;
+        }
+
+        .diff-output.visible {
+            display: block;
+        }
+
+        .diff-output-header {
+            padding: 10px 16px;
+            background: #fafbfc;
+            border-bottom: 1px solid #e8e8e8;
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        /* Side by side view */
+        .diff-side-by-side {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .diff-pane {
+            overflow-x: auto;
+        }
+
+        .diff-pane:first-child {
+            border-right: 1px solid #e8e8e8;
+        }
+
+        .diff-pane-header {
+            padding: 8px 16px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #eee;
+            font-size: 12px;
+            font-weight: 600;
+            color: #888;
+        }
+
+        /* Unified view */
+        .diff-unified {
+            overflow-x: auto;
+        }
+
+        /* Diff lines */
+        .diff-line {
+            display: flex;
+            font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            min-height: 24px;
+        }
+
+        .diff-line-num {
+            width: 48px;
+            min-width: 48px;
+            padding: 0 8px;
+            text-align: right;
+            color: #aaa;
+            user-select: none;
+            border-right: 1px solid #eee;
+            background: inherit;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+        }
+
+        .diff-line-content {
+            padding: 0 12px;
+            white-space: pre-wrap;
+            word-break: break-word;
+            flex: 1;
+            display: flex;
+            align-items: center;
+        }
+
+        .diff-line.added {
+            background: #e6ffec;
+        }
+
+        .diff-line.added .diff-line-num {
+            background: #ccffd8;
+            color: #1a7f37;
+        }
+
+        .diff-line.removed {
+            background: #ffebe9;
+        }
+
+        .diff-line.removed .diff-line-num {
+            background: #ffd7d5;
+            color: #cf222e;
+        }
+
+        .diff-line.unchanged {
+            background: #fff;
+        }
+
+        .diff-line.empty-placeholder {
+            background: #f6f8fa;
+        }
+
+        /* Inline character highlights */
+        .char-added {
+            background: #abf2bc;
+            border-radius: 2px;
+        }
+
+        .char-removed {
+            background: #ffc0be;
+            border-radius: 2px;
+        }
+
+        /* Unified specific */
+        .diff-unified .diff-line {
+            padding-left: 0;
+        }
+
+        .diff-unified .diff-line-prefix {
+            width: 20px;
+            min-width: 20px;
+            text-align: center;
+            user-select: none;
+            color: #888;
+            font-weight: 500;
+        }
+
+        .no-diff-message {
+            padding: 40px;
+            text-align: center;
+            color: #999;
+            font-size: 14px;
+        }
+
+        /* Ignore options */
+        .ignore-options {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .ignore-options label {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+        }
+
+        .ignore-options input[type="checkbox"] {
+            accent-color: #4361ee;
+        }
+
+        @media (max-width: 768px) {
+            .input-section {
+                grid-template-columns: 1fr;
+            }
+            .diff-side-by-side {
+                grid-template-columns: 1fr;
+            }
+            .diff-pane:first-child {
+                border-right: none;
+                border-bottom: 1px solid #e8e8e8;
+            }
+            .header {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+    </style>
 </head>
 <body>
-
-<div class="header">
-  <h1>Image Converter</h1>
-  <p>WebP / JPEG / PNG 相互変換・圧縮・リサイズ — ブラウザ内完結</p>
-</div>
-
-<div class="container">
-
-  <!-- Settings -->
-  <div class="card">
-    <div class="card-title">Settings</div>
-    <div class="settings-grid">
-
-      <div class="setting-block">
-        <div class="setting-label">出力形式</div>
-        <select id="outputFormat">
-          <option value="image/webp">WebP</option>
-          <option value="image/jpeg">JPEG</option>
-          <option value="image/png">PNG</option>
-        </select>
-      </div>
-
-      <div class="setting-block">
-        <div class="setting-label">品質</div>
-        <div class="range-wrap">
-          <input type="range" id="quality" min="1" max="100" value="80">
-          <span class="range-val" id="qualityVal">80%</span>
+    <div class="header">
+        <h1>テキスト差分チェッカー</h1>
+        <div class="header-actions">
+            <div class="ignore-options">
+                <label><input type="checkbox" id="ignoreWhitespace"> 空白を無視</label>
+                <label><input type="checkbox" id="ignoreCase"> 大小文字を無視</label>
+                <label><input type="checkbox" id="ignoreLineBreaks"> 改行を無視</label>
+            </div>
+            <div class="view-toggle">
+                <button id="btnSideBySide" class="active" onclick="setView('side')">横並び</button>
+                <button id="btnUnified" onclick="setView('unified')">統合</button>
+            </div>
         </div>
-        <div class="hint">低いほど軽量に（PNGは無損失のため無視されます）</div>
-      </div>
-
-      <div class="setting-block">
-        <div class="setting-label">リサイズ</div>
-        <div class="toggle-row" id="resizeToggle">
-          <div class="toggle" id="resizeToggleBtn"></div>
-          <span>リサイズを有効にする</span>
-        </div>
-        <div class="sub-options" id="resizeOptions">
-          <select id="resizeMode">
-            <option value="maxWidth">最大幅を指定</option>
-            <option value="maxHeight">最大高さを指定</option>
-            <option value="exact">幅 x 高さを指定</option>
-            <option value="percent">縮小率（%）</option>
-          </select>
-          <div class="inline-inputs">
-            <input type="number" id="resizeW" placeholder="幅" min="1" value="1200">
-            <span id="resizeSep">px</span>
-            <input type="number" id="resizeH" placeholder="高さ" min="1" value="800" style="display:none;">
-            <span id="resizeUnit" style="display:none;">px</span>
-          </div>
-          <label class="checkbox-row" id="lockRatioLabel" style="display:none;">
-            <input type="checkbox" id="lockRatio" checked> アスペクト比を固定
-          </label>
-          <div class="hint">元画像より拡大はしません</div>
-        </div>
-      </div>
-
-      <div class="setting-block">
-        <div class="setting-label">目標ファイルサイズ</div>
-        <div class="toggle-row" id="targetToggle">
-          <div class="toggle" id="targetToggleBtn"></div>
-          <span>サイズ上限を指定する</span>
-        </div>
-        <div class="sub-options" id="targetOptions">
-          <div class="inline-inputs">
-            <input type="number" id="targetSize" placeholder="200" min="1" value="200">
-            <select id="targetSizeUnit">
-              <option value="kb">KB</option>
-              <option value="mb">MB</option>
-            </select>
-          </div>
-          <div class="hint">品質を自動調整して指定サイズ以下に（PNGは非対応）</div>
-        </div>
-      </div>
-
     </div>
-  </div>
 
-  <!-- Drop zone -->
-  <div class="card" style="padding:0; border:none; background:transparent;">
-    <div class="drop-zone" id="dropZone">
-      <div class="drop-icon">+</div>
-      <p class="main-text">ファイルをドラッグ&ドロップ</p>
-      <p class="sub-text">またはクリックして選択 — PNG / JPG / WebP / BMP / GIF / AVIF</p>
-      <input type="file" id="fileInput" multiple accept="image/*,.webp" style="display:none">
+    <div class="container">
+        <div class="input-section">
+            <div class="input-panel">
+                <div class="input-panel-header">
+                    <span>変更前テキスト</span>
+                    <span class="char-count" id="countA">0 文字</span>
+                </div>
+                <textarea id="textA" placeholder="ここに変更前のテキストを貼り付けてください…"></textarea>
+            </div>
+            <div class="input-panel">
+                <div class="input-panel-header">
+                    <span>変更後テキスト</span>
+                    <span class="char-count" id="countB">0 文字</span>
+                </div>
+                <textarea id="textB" placeholder="ここに変更後のテキストを貼り付けてください…"></textarea>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button class="btn btn-swap" onclick="swapTexts()" title="テキストを入れ替え">⇄ 入替</button>
+            <button class="btn btn-primary" onclick="runDiff()">差分を比較</button>
+            <button class="btn btn-secondary" onclick="clearAll()">クリア</button>
+        </div>
+
+        <div class="stats-bar" id="statsBar">
+            <div class="stat-item">
+                <div class="stat-dot added"></div>
+                <span class="stat-label">追加:</span>
+                <span class="stat-value" id="statAdded">0</span>
+            </div>
+            <div class="stat-item">
+                <div class="stat-dot removed"></div>
+                <span class="stat-label">削除:</span>
+                <span class="stat-value" id="statRemoved">0</span>
+            </div>
+            <div class="stat-item">
+                <div class="stat-dot changed"></div>
+                <span class="stat-label">変更:</span>
+                <span class="stat-value" id="statChanged">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">一致率:</span>
+                <span class="stat-value" id="statMatch">-</span>
+            </div>
+        </div>
+
+        <div class="diff-output" id="diffOutput">
+            <div id="diffContent"></div>
+        </div>
     </div>
-  </div>
 
-  <!-- Actions -->
-  <div class="actions">
-    <button class="btn-primary" id="convertBtn" disabled>変換する</button>
-    <button class="btn-secondary" id="downloadAllBtn" disabled>ZIP でダウンロード</button>
-    <button class="btn-danger" id="clearBtn" disabled>クリア</button>
-  </div>
+    <script>
+        // --- Myers diff algorithm (line-level) ---
+        function myersDiff(a, b) {
+            const n = a.length;
+            const m = b.length;
+            const max = n + m;
+            const v = new Array(2 * max + 1);
+            const trace = [];
 
-  <!-- Stats -->
-  <div class="stats" id="stats"></div>
+            v[max + 1] = 0;
 
-  <!-- File list -->
-  <div class="file-list" id="fileList"></div>
-
-</div>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script>
-const $ = id => document.getElementById(id);
-const dropZone = $('dropZone'), fileInput = $('fileInput');
-const qualitySlider = $('quality'), qualityVal = $('qualityVal');
-const outputFormat = $('outputFormat');
-const resizeMode = $('resizeMode');
-const resizeW = $('resizeW'), resizeH = $('resizeH'), resizeSep = $('resizeSep'), resizeUnit = $('resizeUnit');
-const lockRatio = $('lockRatio'), lockRatioLabel = $('lockRatioLabel');
-const targetSizeInput = $('targetSize'), targetSizeUnit = $('targetSizeUnit');
-const convertBtn = $('convertBtn'), downloadAllBtn = $('downloadAllBtn'), clearBtn = $('clearBtn');
-const fileList = $('fileList'), statsEl = $('stats');
-
-let files = [];
-let resizeEnabled = false, targetEnabled = false;
-
-// Toggle helpers
-function setupToggle(toggleRow, toggleBtn, options, getter, setter) {
-  toggleRow.addEventListener('click', () => {
-    setter(!getter());
-    toggleBtn.classList.toggle('on', getter());
-    options.classList.toggle('open', getter());
-  });
-}
-setupToggle($('resizeToggle'), $('resizeToggleBtn'), $('resizeOptions'), () => resizeEnabled, v => resizeEnabled = v);
-setupToggle($('targetToggle'), $('targetToggleBtn'), $('targetOptions'), () => targetEnabled, v => targetEnabled = v);
-
-qualitySlider.addEventListener('input', () => qualityVal.textContent = qualitySlider.value + '%');
-
-resizeMode.addEventListener('change', () => {
-  const mode = resizeMode.value;
-  resizeW.style.display = ''; resizeH.style.display = 'none';
-  resizeUnit.style.display = 'none'; resizeSep.textContent = 'px';
-  lockRatioLabel.style.display = 'none';
-  if (mode === 'maxWidth') { resizeW.placeholder = '幅'; resizeW.value = 1200; }
-  if (mode === 'maxHeight') { resizeW.placeholder = '高さ'; resizeW.value = 800; }
-  if (mode === 'exact') {
-    resizeW.placeholder = '幅'; resizeW.value = 1200; resizeH.value = 800;
-    resizeH.style.display = ''; resizeSep.textContent = '×'; resizeUnit.style.display = '';
-    lockRatioLabel.style.display = '';
-  }
-  if (mode === 'percent') { resizeW.placeholder = '%'; resizeW.value = 50; resizeSep.textContent = '%'; }
-});
-
-// 幅・高さ連動（アスペクト比固定時）
-let lastEdited = 'w';
-resizeW.addEventListener('input', () => {
-  lastEdited = 'w';
-  if (resizeMode.value === 'exact' && lockRatio.checked && files.length > 0) {
-    const img = new Image();
-    img.src = URL.createObjectURL(files[0].file);
-    img.onload = () => {
-      const ratio = img.naturalHeight / img.naturalWidth;
-      resizeH.value = Math.round((parseInt(resizeW.value) || 1) * ratio);
-      URL.revokeObjectURL(img.src);
-    };
-  }
-});
-resizeH.addEventListener('input', () => {
-  lastEdited = 'h';
-  if (resizeMode.value === 'exact' && lockRatio.checked && files.length > 0) {
-    const img = new Image();
-    img.src = URL.createObjectURL(files[0].file);
-    img.onload = () => {
-      const ratio = img.naturalWidth / img.naturalHeight;
-      resizeW.value = Math.round((parseInt(resizeH.value) || 1) * ratio);
-      URL.revokeObjectURL(img.src);
-    };
-  }
-});
-
-// Drop zone
-dropZone.addEventListener('click', () => fileInput.click());
-dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
-dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); addFiles(e.dataTransfer.files); });
-fileInput.addEventListener('change', () => { addFiles(fileInput.files); fileInput.value = ''; });
-
-function addFiles(newFiles) {
-  for (const f of newFiles) {
-    if (f.type.startsWith('image/')) {
-      files.push({ file: f, id: Date.now() + Math.random(), result: null, error: null, dims: null, newDims: null });
-    }
-  }
-  renderList(); updateButtons();
-}
-
-function formatSize(bytes) {
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-  return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
-}
-
-function getExt(format) {
-  if (format === 'image/webp') return '.webp';
-  if (format === 'image/jpeg') return '.jpg';
-  return '.png';
-}
-
-function getOutputName(name) {
-  return name.replace(/\.[^.]+$/, '') + getExt(outputFormat.value);
-}
-
-function calcResize(origW, origH) {
-  if (!resizeEnabled) return { w: origW, h: origH };
-  const mode = resizeMode.value;
-  let w = origW, h = origH;
-  const v1 = parseInt(resizeW.value) || origW;
-  const v2 = parseInt(resizeH.value) || origH;
-  if (mode === 'maxWidth') { if (origW > v1) { w = v1; h = Math.round(origH * (v1 / origW)); } }
-  else if (mode === 'maxHeight') { if (origH > v1) { h = v1; w = Math.round(origW * (v1 / origH)); } }
-  else if (mode === 'exact') {
-    if (lockRatio.checked) {
-      const r = origW / origH, tw = Math.min(v1, origW), th = Math.min(v2, origH);
-      if (tw / th > r) { h = th; w = Math.round(h * r); } else { w = tw; h = Math.round(w / r); }
-    } else { w = Math.min(v1, origW); h = Math.min(v2, origH); }
-  } else if (mode === 'percent') {
-    const pct = Math.min(v1, 100) / 100;
-    w = Math.round(origW * pct); h = Math.round(origH * pct);
-  }
-  return { w: Math.max(1, w), h: Math.max(1, h) };
-}
-
-function renderList() {
-  fileList.innerHTML = '';
-  files.forEach((item, idx) => {
-    const div = document.createElement('div');
-    div.className = 'file-item' + (item.result ? ' done' : '') + (item.error ? ' error' : '');
-
-    const thumb = document.createElement('img');
-    thumb.className = 'thumb';
-    thumb.src = URL.createObjectURL(item.file);
-    thumb.onload = () => URL.revokeObjectURL(thumb.src);
-
-    const info = document.createElement('div');
-    info.className = 'file-info';
-
-    const name = document.createElement('div');
-    name.className = 'file-name';
-    name.textContent = item.file.name;
-
-    const meta = document.createElement('div');
-    meta.className = 'file-meta';
-    if (item.result) {
-      const diff = ((item.result.size - item.file.size) / item.file.size * 100).toFixed(1);
-      const reduced = item.result.size < item.file.size;
-      meta.innerHTML = `${formatSize(item.file.size)} → ${formatSize(item.result.size)} <span class="${reduced ? 'reduction' : 'increase'}">(${reduced ? '' : '+'}${diff}%)</span>`;
-    } else if (item.error) {
-      meta.textContent = item.error;
-    } else {
-      meta.textContent = formatSize(item.file.size);
-    }
-
-    const dims = document.createElement('div');
-    dims.className = 'file-dims';
-    if (item.dims && item.newDims) {
-      const changed = item.dims.w !== item.newDims.w || item.dims.h !== item.newDims.h;
-      dims.textContent = changed
-        ? `${item.dims.w} × ${item.dims.h}  →  ${item.newDims.w} × ${item.newDims.h}`
-        : `${item.dims.w} × ${item.dims.h}`;
-    }
-
-    info.appendChild(name); info.appendChild(meta); info.appendChild(dims);
-
-    const actions = document.createElement('div');
-    actions.className = 'file-actions';
-    if (item.result) {
-      const dlBtn = document.createElement('button');
-      dlBtn.className = 'btn-secondary'; dlBtn.textContent = '保存';
-      dlBtn.onclick = () => downloadOne(item);
-      actions.appendChild(dlBtn);
-    }
-    const rmBtn = document.createElement('button');
-    rmBtn.className = 'btn-danger'; rmBtn.textContent = '×';
-    rmBtn.style.padding = '7px 12px';
-    rmBtn.onclick = () => { files.splice(idx, 1); renderList(); updateButtons(); };
-    actions.appendChild(rmBtn);
-
-    div.appendChild(thumb); div.appendChild(info); div.appendChild(actions);
-    fileList.appendChild(div);
-  });
-  updateStats();
-}
-
-function updateButtons() {
-  const hasFiles = files.length > 0;
-  const hasResults = files.some(f => f.result);
-  convertBtn.disabled = !hasFiles;
-  downloadAllBtn.disabled = !hasResults;
-  clearBtn.disabled = !hasFiles;
-}
-
-function updateStats() {
-  if (files.length === 0) { statsEl.classList.remove('visible'); return; }
-  statsEl.classList.add('visible');
-  const done = files.filter(f => f.result).length;
-  const totalOrig = files.filter(f => f.result).reduce((s, f) => s + f.file.size, 0);
-  const totalNew = files.filter(f => f.result).reduce((s, f) => s + f.result.size, 0);
-  let html = `<span class="highlight">${files.length}</span> ファイル中 <span class="highlight">${done}</span> 件変換済み`;
-  if (done > 0) {
-    const saved = totalOrig - totalNew;
-    const pct = ((saved / totalOrig) * 100).toFixed(1);
-    html += ` &nbsp;|&nbsp; ${formatSize(totalOrig)} → ${formatSize(totalNew)} <span class="saved">(${saved > 0 ? '-' : '+'}${Math.abs(pct)}%)</span>`;
-  }
-  statsEl.innerHTML = html;
-}
-
-function canvasToBlob(canvas, fmt, quality) {
-  return new Promise(resolve => canvas.toBlob(resolve, fmt, quality));
-}
-
-function getTargetBytes() {
-  if (!targetEnabled) return null;
-  const val = parseInt(targetSizeInput.value);
-  if (!val || val <= 0) return null;
-  return targetSizeUnit.value === 'mb' ? val * 1024 * 1024 : val * 1024;
-}
-
-async function convertOne(item) {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = async () => {
-      const origW = img.naturalWidth, origH = img.naturalHeight;
-      item.dims = { w: origW, h: origH };
-      const { w, h } = calcResize(origW, origH);
-      item.newDims = { w, h };
-
-      const canvas = document.createElement('canvas');
-      canvas.width = w; canvas.height = h;
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-
-      const fmt = outputFormat.value;
-      const targetBytes = getTargetBytes();
-
-      if (targetBytes && fmt !== 'image/png') {
-        let lo = 0.01, hi = qualitySlider.value / 100, bestBlob = null;
-        let blob = await canvasToBlob(canvas, fmt, hi);
-        if (blob && blob.size <= targetBytes) {
-          bestBlob = blob;
-        } else {
-          for (let i = 0; i < 10; i++) {
-            const mid = (lo + hi) / 2;
-            blob = await canvasToBlob(canvas, fmt, mid);
-            if (blob && blob.size <= targetBytes) { bestBlob = blob; lo = mid; } else { hi = mid; }
-          }
-          if (!bestBlob) bestBlob = await canvasToBlob(canvas, fmt, 0.01);
+            for (let d = 0; d <= max; d++) {
+                const newV = v.slice();
+                for (let k = -d; k <= d; k += 2) {
+                    let x;
+                    if (k === -d || (k !== d && v[max + k - 1] < v[max + k + 1])) {
+                        x = v[max + k + 1];
+                    } else {
+                        x = v[max + k - 1] + 1;
+                    }
+                    let y = x - k;
+                    while (x < n && y < m && a[x] === b[y]) {
+                        x++;
+                        y++;
+                    }
+                    newV[max + k] = x;
+                    if (x >= n && y >= m) {
+                        trace.push(newV);
+                        return backtrack(trace, max, n, m);
+                    }
+                }
+                trace.push(newV);
+                for (let i = 0; i < newV.length; i++) v[i] = newV[i];
+            }
+            return [];
         }
-        if (bestBlob) { item.result = bestBlob; item.outputName = getOutputName(item.file.name); }
-        else { item.error = '指定サイズ以下にできませんでした'; }
-      } else {
-        const q = fmt === 'image/png' ? undefined : qualitySlider.value / 100;
-        const blob = await canvasToBlob(canvas, fmt, q);
-        if (blob) { item.result = blob; item.outputName = getOutputName(item.file.name); }
-        else { item.error = '変換に失敗しました'; }
-      }
-      URL.revokeObjectURL(img.src);
-      resolve();
-    };
-    img.onerror = () => { item.error = '読み込みに失敗'; URL.revokeObjectURL(img.src); resolve(); };
-    img.src = URL.createObjectURL(item.file);
-  });
-}
 
-convertBtn.addEventListener('click', async () => {
-  convertBtn.disabled = true; convertBtn.textContent = '変換中...';
-  for (const item of files) {
-    if (!item.result && !item.error) { await convertOne(item); renderList(); }
-  }
-  convertBtn.textContent = '変換する'; updateButtons();
-});
+        function backtrack(trace, max, n, m) {
+            const moves = [];
+            let x = n, y = m;
 
-function downloadOne(item) {
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(item.result); a.download = item.outputName;
-  a.click(); URL.revokeObjectURL(a.href);
-}
+            for (let d = trace.length - 1; d >= 0; d--) {
+                const v = trace[d];
+                const k = x - y;
 
-downloadAllBtn.addEventListener('click', async () => {
-  const converted = files.filter(f => f.result);
-  if (converted.length === 0) return;
-  if (converted.length === 1) { downloadOne(converted[0]); return; }
+                let prevK;
+                if (k === -d || (k !== d && (d > 0 ? trace[d-1] : trace[0])[max + k - 1] < (d > 0 ? trace[d-1] : trace[0])[max + k + 1])) {
+                    prevK = k + 1;
+                } else {
+                    prevK = k - 1;
+                }
 
-  downloadAllBtn.disabled = true; downloadAllBtn.textContent = 'ZIP 作成中...';
-  const zip = new JSZip();
-  const used = {};
-  for (const item of converted) {
-    let name = item.outputName;
-    if (used[name]) { const b = name.replace(/\.[^.]+$/, ''), e = name.match(/\.[^.]+$/)[0]; used[name]++; name = b + '_' + used[name] + e; }
-    else { used[name] = 1; }
-    zip.file(name, item.result);
-  }
-  const blob = await zip.generateAsync({ type: 'blob' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob); a.download = 'converted_images.zip';
-  a.click(); URL.revokeObjectURL(a.href);
-  downloadAllBtn.textContent = 'ZIP でダウンロード'; downloadAllBtn.disabled = false;
-});
+                const prevX = d > 0 ? trace[d-1][max + prevK] : 0;
+                const prevY = prevX - prevK;
 
-clearBtn.addEventListener('click', () => { files = []; renderList(); updateButtons(); });
-</script>
+                // Diagonal (equal)
+                while (x > prevX + (prevK !== k ? 0 : 1) && y > prevY + (prevK !== k ? 1 : 0)) {
+                    x--;
+                    y--;
+                    moves.unshift({ type: 'equal', oldIdx: x, newIdx: y });
+                }
+
+                if (d > 0) {
+                    if (prevK === k + 1) {
+                        // Vertical move = insertion
+                        y--;
+                        moves.unshift({ type: 'insert', newIdx: y });
+                    } else {
+                        // Horizontal move = deletion
+                        x--;
+                        moves.unshift({ type: 'delete', oldIdx: x });
+                    }
+                }
+
+                x = prevX;
+                y = prevY;
+            }
+
+            return moves;
+        }
+
+        // --- Character-level diff for inline highlighting ---
+        function charDiff(oldStr, newStr) {
+            const a = Array.from(oldStr);
+            const b = Array.from(newStr);
+
+            // Simple LCS-based char diff for short strings
+            if (a.length + b.length > 2000) {
+                return { oldParts: [{ text: oldStr, type: 'removed' }], newParts: [{ text: newStr, type: 'added' }] };
+            }
+
+            const moves = myersDiff(a, b);
+            const oldParts = [];
+            const newParts = [];
+
+            let currentOldText = '';
+            let currentOldType = null;
+            let currentNewText = '';
+            let currentNewType = null;
+
+            for (const move of moves) {
+                if (move.type === 'equal') {
+                    if (currentOldType && currentOldText) { oldParts.push({ text: currentOldText, type: currentOldType }); currentOldText = ''; }
+                    if (currentNewType && currentNewText) { newParts.push({ text: currentNewText, type: currentNewType }); currentNewText = ''; }
+                    currentOldType = 'equal';
+                    currentNewType = 'equal';
+                    currentOldText += a[move.oldIdx];
+                    currentNewText += b[move.newIdx];
+                } else if (move.type === 'delete') {
+                    if (currentOldType === 'equal' && currentOldText) { oldParts.push({ text: currentOldText, type: 'equal' }); currentOldText = ''; }
+                    currentOldType = 'removed';
+                    currentOldText += a[move.oldIdx];
+                } else if (move.type === 'insert') {
+                    if (currentNewType === 'equal' && currentNewText) { newParts.push({ text: currentNewText, type: 'equal' }); currentNewText = ''; }
+                    currentNewType = 'added';
+                    currentNewText += b[move.newIdx];
+                }
+            }
+
+            if (currentOldText) oldParts.push({ text: currentOldText, type: currentOldType || 'equal' });
+            if (currentNewText) newParts.push({ text: currentNewText, type: currentNewType || 'equal' });
+
+            return { oldParts, newParts };
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        function partsToHtml(parts, highlightClass) {
+            return parts.map(p => {
+                const text = escapeHtml(p.text);
+                if (p.type === highlightClass) {
+                    return `<span class="char-${highlightClass}">${text}</span>`;
+                }
+                return text;
+            }).join('');
+        }
+
+        // --- State ---
+        let currentView = 'side';
+        let lastDiffResult = null;
+
+        // --- UI ---
+        const textA = document.getElementById('textA');
+        const textB = document.getElementById('textB');
+
+        textA.addEventListener('input', () => {
+            document.getElementById('countA').textContent = textA.value.length + ' 文字';
+        });
+        textB.addEventListener('input', () => {
+            document.getElementById('countB').textContent = textB.value.length + ' 文字';
+        });
+
+        function setView(view) {
+            currentView = view;
+            document.getElementById('btnSideBySide').classList.toggle('active', view === 'side');
+            document.getElementById('btnUnified').classList.toggle('active', view === 'unified');
+            if (lastDiffResult) renderDiff(lastDiffResult);
+        }
+
+        function swapTexts() {
+            const tmp = textA.value;
+            textA.value = textB.value;
+            textB.value = tmp;
+            textA.dispatchEvent(new Event('input'));
+            textB.dispatchEvent(new Event('input'));
+        }
+
+        function clearAll() {
+            textA.value = '';
+            textB.value = '';
+            textA.dispatchEvent(new Event('input'));
+            textB.dispatchEvent(new Event('input'));
+            document.getElementById('statsBar').classList.remove('visible');
+            document.getElementById('diffOutput').classList.remove('visible');
+            lastDiffResult = null;
+        }
+
+        function preprocessLine(line) {
+            let l = line;
+            if (document.getElementById('ignoreWhitespace').checked) {
+                l = l.replace(/[ \t]+/g, ' ').trim();
+            }
+            if (document.getElementById('ignoreCase').checked) {
+                l = l.toLowerCase();
+            }
+            return l;
+        }
+
+        function textToParagraphs(text) {
+            // Split by blank lines into paragraphs, join lines within each paragraph with spaces
+            return text.split(/\n\s*\n/).map(p => p.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim()).filter(p => p);
+        }
+
+        function runDiff() {
+            const rawA = textA.value;
+            const rawB = textB.value;
+            const ignoreLineBreaks = document.getElementById('ignoreLineBreaks').checked;
+
+            let origA, origB;
+            if (ignoreLineBreaks) {
+                origA = textToParagraphs(rawA);
+                origB = textToParagraphs(rawB);
+            } else {
+                origA = rawA.split('\n');
+                origB = rawB.split('\n');
+            }
+
+            const a = origA.map(l => preprocessLine(l));
+            const b = origB.map(l => preprocessLine(l));
+
+            const moves = myersDiff(a, b);
+
+            // Build diff result
+            const result = [];
+            let addedCount = 0, removedCount = 0, changedCount = 0, equalCount = 0;
+
+            // Group consecutive delete+insert as "changed"
+            let i = 0;
+            while (i < moves.length) {
+                if (moves[i].type === 'equal') {
+                    result.push({ type: 'equal', oldLine: origA[moves[i].oldIdx], newLine: origB[moves[i].newIdx], oldNum: moves[i].oldIdx + 1, newNum: moves[i].newIdx + 1 });
+                    equalCount++;
+                    i++;
+                } else {
+                    // Collect consecutive deletes and inserts
+                    const dels = [];
+                    const ins = [];
+                    while (i < moves.length && moves[i].type === 'delete') {
+                        dels.push({ line: origA[moves[i].oldIdx], idx: moves[i].oldIdx + 1 });
+                        i++;
+                    }
+                    while (i < moves.length && moves[i].type === 'insert') {
+                        ins.push({ line: origB[moves[i].newIdx], idx: moves[i].newIdx + 1 });
+                        i++;
+                    }
+                    // Pair them as changes
+                    const pairCount = Math.min(dels.length, ins.length);
+                    for (let j = 0; j < pairCount; j++) {
+                        const cd = charDiff(dels[j].line, ins[j].line);
+                        result.push({ type: 'changed', oldLine: dels[j].line, newLine: ins[j].line, oldNum: dels[j].idx, newNum: ins[j].idx, charDiff: cd });
+                        changedCount++;
+                    }
+                    for (let j = pairCount; j < dels.length; j++) {
+                        result.push({ type: 'removed', oldLine: dels[j].line, oldNum: dels[j].idx });
+                        removedCount++;
+                    }
+                    for (let j = pairCount; j < ins.length; j++) {
+                        result.push({ type: 'added', newLine: ins[j].line, newNum: ins[j].idx });
+                        addedCount++;
+                    }
+                }
+            }
+
+            const total = equalCount + changedCount + removedCount + addedCount;
+            const matchRate = total > 0 ? Math.round((equalCount / Math.max(a.length, b.length)) * 100) : 100;
+
+            document.getElementById('statAdded').textContent = addedCount;
+            document.getElementById('statRemoved').textContent = removedCount;
+            document.getElementById('statChanged').textContent = changedCount;
+            document.getElementById('statMatch').textContent = matchRate + '%';
+            document.getElementById('statsBar').classList.add('visible');
+
+            lastDiffResult = result;
+            renderDiff(result);
+        }
+
+        function renderDiff(result) {
+            const output = document.getElementById('diffOutput');
+            const content = document.getElementById('diffContent');
+            output.classList.add('visible');
+
+            if (result.every(r => r.type === 'equal')) {
+                content.innerHTML = '<div class="no-diff-message">差分はありません。テキストは同一です。</div>';
+                return;
+            }
+
+            if (currentView === 'side') {
+                renderSideBySide(result, content);
+            } else {
+                renderUnified(result, content);
+            }
+        }
+
+        function renderSideBySide(result, container) {
+            let leftHtml = '';
+            let rightHtml = '';
+
+            for (const r of result) {
+                if (r.type === 'equal') {
+                    leftHtml += diffLine('unchanged', r.oldNum, escapeHtml(r.oldLine));
+                    rightHtml += diffLine('unchanged', r.newNum, escapeHtml(r.newLine));
+                } else if (r.type === 'changed') {
+                    const oldContent = partsToHtml(r.charDiff.oldParts, 'removed');
+                    const newContent = partsToHtml(r.charDiff.newParts, 'added');
+                    leftHtml += diffLine('removed', r.oldNum, oldContent);
+                    rightHtml += diffLine('added', r.newNum, newContent);
+                } else if (r.type === 'removed') {
+                    leftHtml += diffLine('removed', r.oldNum, escapeHtml(r.oldLine));
+                    rightHtml += diffLine('empty-placeholder', '', '');
+                } else if (r.type === 'added') {
+                    leftHtml += diffLine('empty-placeholder', '', '');
+                    rightHtml += diffLine('added', r.newNum, escapeHtml(r.newLine));
+                }
+            }
+
+            container.innerHTML = `
+                <div class="diff-side-by-side">
+                    <div class="diff-pane">
+                        <div class="diff-pane-header">変更前</div>
+                        ${leftHtml}
+                    </div>
+                    <div class="diff-pane">
+                        <div class="diff-pane-header">変更後</div>
+                        ${rightHtml}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderUnified(result, container) {
+            let html = '';
+
+            for (const r of result) {
+                if (r.type === 'equal') {
+                    html += diffLineUnified('unchanged', r.oldNum, r.newNum, ' ', escapeHtml(r.oldLine));
+                } else if (r.type === 'changed') {
+                    const oldContent = partsToHtml(r.charDiff.oldParts, 'removed');
+                    const newContent = partsToHtml(r.charDiff.newParts, 'added');
+                    html += diffLineUnified('removed', r.oldNum, '', '-', oldContent);
+                    html += diffLineUnified('added', '', r.newNum, '+', newContent);
+                } else if (r.type === 'removed') {
+                    html += diffLineUnified('removed', r.oldNum, '', '-', escapeHtml(r.oldLine));
+                } else if (r.type === 'added') {
+                    html += diffLineUnified('added', '', r.newNum, '+', escapeHtml(r.newLine));
+                }
+            }
+
+            container.innerHTML = `
+                <div class="diff-unified">
+                    ${html}
+                </div>
+            `;
+        }
+
+        function diffLine(type, num, content) {
+            return `<div class="diff-line ${type}">
+                <div class="diff-line-num">${num}</div>
+                <div class="diff-line-content">${content || '&nbsp;'}</div>
+            </div>`;
+        }
+
+        function diffLineUnified(type, oldNum, newNum, prefix, content) {
+            return `<div class="diff-line ${type}">
+                <div class="diff-line-num">${oldNum}</div>
+                <div class="diff-line-num">${newNum}</div>
+                <div class="diff-line-prefix">${prefix}</div>
+                <div class="diff-line-content">${content || '&nbsp;'}</div>
+            </div>`;
+        }
+
+        // Keyboard shortcut
+        document.addEventListener('keydown', (e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                runDiff();
+            }
+        });
+    </script>
 </body>
 </html>
